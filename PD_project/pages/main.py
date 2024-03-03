@@ -6,11 +6,17 @@ from help import HelpPage
 class App(Tk):
     def __init__(self, *args, **kwargs):
         Tk.__init__(self, *args, **kwargs)
-        self.title("CANE CHECKs")
+        self.title("CANE CHECK")
         self.attributes('-fullscreen', True)
         
         self.side_nav = Frame(self, bg="gray", width=200)
         self.side_nav.pack(side=LEFT, fill=Y)
+
+        title_label = Label(self.side_nav, text="CANE CHECK", font=("Arial", 16, "bold"), bg="gray", fg="white")
+        title_label.pack(side=TOP, pady=10, padx=10)
+
+        hr_line = Frame(self.side_nav, height=2, bg="white")
+        hr_line.pack(fill=X, pady=5, padx=10)
 
         pages = ["DASHBOARD", "REPORTS", "HELP"]
         for page_name in pages:
