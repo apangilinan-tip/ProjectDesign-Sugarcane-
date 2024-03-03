@@ -6,7 +6,7 @@ from help import HelpPage
 class App(Tk):
     def __init__(self, *args, **kwargs):
         Tk.__init__(self, *args, **kwargs)
-        self.title("CANE CHECK")
+        self.title("CANE CHECKs")
         self.attributes('-fullscreen', True)
         
         self.side_nav = Frame(self, bg="gray", width=200)
