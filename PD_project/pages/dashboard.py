@@ -1,6 +1,9 @@
 from tkinter import *
 import cv2 
 from PIL import Image, ImageTk 
+import os
+
+from datetime import datetime
 
 class DashboardPage(Frame):
     def __init__(self, parent, *args, **kwargs):
@@ -15,13 +18,18 @@ class DashboardPage(Frame):
 
         # Create a label for the camera preview
         self.label_widget = Label(self, borderwidth=5, relief="ridge")
-        self.label_widget.grid(row=1, column=0, padx=10, pady=10)  # Adjust the values of padx and pady as needed
+        self.label_widget.grid(row=1, column=0, padx=10, pady=10)  
 
         self.capture_image = False
+        self.image_count = 0
+
+        # Create a label to display the image count
+        self.count_label = Label(self, text="Images captured: 0")
+        self.count_label.grid(row=2, column=0, padx=10, pady=10)  
 
         # Create a button to capture an image
         self.button1 = Button(self, text="Capture Image", command=self.capture_image_func)
-        self.button1.grid(row=2, column=0, padx=10, pady=10)  # Adjust the values of padx and pady as needed
+        self.button1.grid(row=3, column=0, padx=10, pady=10)  
 
         self.bind('<Escape>', lambda e: self.master.destroy()) 
 
@@ -38,9 +46,23 @@ class DashboardPage(Frame):
 
         if not self.capture_image:  # If not capturing an image, update the preview
             self.label_widget.after(10, self.open_camera) 
+        else:  # Save the image and update the count
+            self.image_count += 1
+            self.save_image(captured_image)
+            self.count_label.config(text=f"Images captured: {self.image_count}")
+            self.capture_image = False  # Reset the flag
+            self.label_widget.after(10, self.open_camera)  # Continue capturing image
 
     def capture_image_func(self):
         self.capture_image = True  # Set the flag to capture an image
+
+    def save_image(self, image):
+        now = datetime.now()
+        timestamp = now.strftime("%Y-%m-%d_%H-%M-%S")
+        session_path = os.path.join("captured_images")
+        if not os.path.exists(session_path):
+            os.makedirs(session_path)
+        image.save(os.path.join(session_path, f"sugarcane_image_{timestamp}.png"))
 
     def exit_app(self):
         self.master.destroy()
