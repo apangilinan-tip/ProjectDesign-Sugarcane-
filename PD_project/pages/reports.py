@@ -1,6 +1,8 @@
 from tkinter import *
 from tkinter import ttk, simpledialog, messagebox 
 from pymongo import MongoClient
+from bson.son import SON
+import threading
 from datetime import datetime
 
 class ReportsPage(Frame):
@@ -38,12 +40,13 @@ class ReportsPage(Frame):
         search_button.grid(row=1, column=2, padx=(0, 10), pady=5)
 
         # Refresh Button
-        refresh_button = Button(self, text="Refresh", command=self.fetch_data_from_mongodb, bg="#9E8DB9", fg="white", font=("Arial", 10), relief=RAISED)
+        refresh_button = Button(self, text="Refresh", command=self.refreshAll, bg="#9E8DB9", fg="white", font=("Arial", 10), relief=RAISED)
         refresh_button.pack(padx=1, pady=1, anchor="n")
 
         # Open Button
-        open_button = Button(search_frame, text="Open",command=self.show_session_details, bg="#9E8DB9", fg="white", font=("Arial", 14), relief=RAISED)
+        open_button = Button(search_frame, text="Open",command=self.showSessionDetails, bg="#9E8DB9", fg="white", font=("Arial", 14), relief=RAISED)
         open_button.grid(row=0, column=3, padx=(0,10), pady=5)
+
 
         # Create a scrollbar
         scrollbar = Scrollbar(self)
@@ -67,9 +70,15 @@ class ReportsPage(Frame):
 
         # Bind double click event
         self.table.bind("<Double-1>", self.openSession)
+        
 
     def openSession(self, event):
-        self.show_session_details()
+        self.showSessionDetails()
+
+    def refreshAll(self):
+        self.fetch_data_from_mongodb()
+        self.session_name_entry.delete(0,END)
+        self.search_entry.delete(0,END)
     
 
     def perform_search(self):
@@ -128,30 +137,63 @@ class ReportsPage(Frame):
         print(f"Editing session with name: {session_name}")
 
     def edit_session_name(self):
+    # Check if a session name is entered in the entry
+        new_session_name = self.session_name_entry.get()
+        if new_session_name:
+        # If a session name is entered, edit the input session
+            self.edit_input_session_name(new_session_name)
+        else:
+        # If no session name is entered, edit the selected session
+            self.edit_selected_session_name()
+
+    def edit_input_session_name(self, new_session_name):
+    # Get the current session name from the entry field
+        current_session_name = self.session_name_entry.get()
+
+    # Check if the current session name exists in MongoDB
+        session_data = self.collection.find_one({"SessionName": current_session_name})
+        if session_data:
+            # Prompt the user for the new session name
+            new_session_name = simpledialog.askstring("Edit Session Name", f"Enter new name for session '{current_session_name}':")
+            if new_session_name:
+        # Update the session name in MongoDB
+                session_id = session_data.get("_id")
+                self.collection.update_one({"_id": session_id}, {"$set": {"SessionName": new_session_name}})
+                print(f"Updating session name from '{current_session_name}' to '{new_session_name}'")
+
+        # Refresh the table
+                self.fetch_data_from_mongodb()
+
+        # Update the session name in the entry field
+                self.session_name_entry.delete(0, END)
+                self.session_name_entry.insert(0, new_session_name)
+        else:
+            messagebox.showinfo("Session Not Found", "Session name does not exist.")
+
+
+    def edit_selected_session_name(self):
         selected_items = self.table.selection()
         if selected_items:
             selected_item = selected_items[0]
-            values = self.table.item(selected_items, "values")
+            values = self.table.item(selected_item, "values")
             if values:
                 selectedSessionName = values[0]
                 new_session_name = simpledialog.askstring("Edit Session Name", f"Enter new name for session '{selectedSessionName}':")
                 if new_session_name:
-                    # Perform database update with new session name
+                # Perform database update with new session name
                     session_id = self.collection.find_one({"SessionName": selectedSessionName}).get("_id")
                     self.collection.update_one({"_id": session_id}, {"$set": {"SessionName": new_session_name}})
                     print(f"Updating session name from '{selectedSessionName}' to '{new_session_name}'")
-                    #  Refresh the table
+                # Refresh the table
                     self.fetch_data_from_mongodb()
+                    if self.table.exists(selected_item):
                     # Update the session name in the Treeview
-                    self.table.item(selected_item, values=(new_session_name))
-            else:
-                print("Item Already Edited")
-        else:
-            print("Finish")
+                        self.table.item(selected_item, values=(new_session_name,))
+
                 
 
-    def show_session_details(self):
-    # Check if a session name is entered in the entry
+    def showSessionDetails(self):
+        # Check if a session name is entered in the entry
         if self.session_name_entry.get():
         # If a session name is entered, open the session using the entered name
             self.open_session_by_name()
@@ -169,7 +211,7 @@ class ReportsPage(Frame):
         # Process session data and display session details
             self.display_session_details(session_data)
         else:
-            messagebox.showinfo("Session Not Found", "Session data not found.")
+            messagebox.showinfo("Session Not Found", "Session name not found.")
 
     def open_selected_session(self):
     # Get the selected row
@@ -183,10 +225,6 @@ class ReportsPage(Frame):
             if session_data:
             # Process session data and display session details
                 self.display_session_details(session_data)
-            else:
-                print("Session data not found.")
-        else:
-            print("Please select a session from the table.")
 
     def display_session_details(self, session_data):
     # Process session data and display session details
@@ -230,6 +268,8 @@ class ReportsPage(Frame):
             variety_id = session_detail.get("Variety_ID", "")
             detail_table.insert("", "end", values=(sequence, variety_id)) 
 
+
+
     def show_session_details_frame(self, session_details):
         # Destroy the current frame to clear the screen
         self.destroy()
@@ -257,7 +297,8 @@ class ReportsPage(Frame):
             # Print statement to verify insertion
             print(f"Inserted into detail table: {sequence}, {variety_id}")
 
-    
+
+
     def exit_app(self):
         self.client.close()
         self.parent.destroy()
