@@ -71,10 +71,11 @@ class ReportsPage(Frame):
         # Bind double click event
         self.table.bind("<Double-1>", self.openSession)
         
-
+    # For Double click
     def openSession(self, event):
         self.showSessionDetails()
 
+    #For Refresh Button
     def refreshAll(self):
         self.fetch_data_from_mongodb()
         self.session_name_entry.delete(0,END)
@@ -110,19 +111,6 @@ class ReportsPage(Frame):
             elapsed_time = end_time - start_time
             self.table.insert("", "end", values=(session_name, elapsed_time))
             self.table.tag_configure(session_name, foreground="blue", font=("Arial", 10, "underline"))
-            self.update_or_insert_row(session_name, elapsed_time)
-
-    def update_or_insert_row(self, session_name, elapsed_time):
-    # Check if the session name already exists in the Treeview
-        existing_items = self.table.get_children()
-        for item in existing_items:
-            values = self.table.item(item, "values")
-            if values and values[0] == session_name:
-                # Update existing row
-                self.table.item(item, values=(session_name, elapsed_time))
-                return
-    # If session name doesn't exist, insert a new row
-        self.table.insert("", "end", values=(session_name, elapsed_time))
 
     def parse_datetime(self, datetime_str):
         formats = ["%Y-%m-%dT%H:%M:%S%z", "%Y-%m-%d %H:%M:%S"]
@@ -136,8 +124,7 @@ class ReportsPage(Frame):
     def edit_session(self, session_name):
         print(f"Editing session with name: {session_name}")
 
-    def edit_session_name(self):
-    # Check if a session name is entered in the entry
+    def edit_session_name(self):    
         new_session_name = self.session_name_entry.get()
         if new_session_name:
         # If a session name is entered, edit the input session
@@ -147,24 +134,20 @@ class ReportsPage(Frame):
             self.edit_selected_session_name()
 
     def edit_input_session_name(self, new_session_name):
-    # Get the current session name from the entry field
+        # Entered session name
         current_session_name = self.session_name_entry.get()
 
-    # Check if the current session name exists in MongoDB
+        # Check if the current session name exists in MongoDB
         session_data = self.collection.find_one({"SessionName": current_session_name})
         if session_data:
-            # Prompt the user for the new session name
             new_session_name = simpledialog.askstring("Edit Session Name", f"Enter new name for session '{current_session_name}':")
             if new_session_name:
         # Update the session name in MongoDB
                 session_id = session_data.get("_id")
                 self.collection.update_one({"_id": session_id}, {"$set": {"SessionName": new_session_name}})
                 print(f"Updating session name from '{current_session_name}' to '{new_session_name}'")
-
-        # Refresh the table
                 self.fetch_data_from_mongodb()
-
-        # Update the session name in the entry field
+        # Update the session name in the table
                 self.session_name_entry.delete(0, END)
                 self.session_name_entry.insert(0, new_session_name)
         else:
@@ -184,7 +167,6 @@ class ReportsPage(Frame):
                     session_id = self.collection.find_one({"SessionName": selectedSessionName}).get("_id")
                     self.collection.update_one({"_id": session_id}, {"$set": {"SessionName": new_session_name}})
                     print(f"Updating session name from '{selectedSessionName}' to '{new_session_name}'")
-                # Refresh the table
                     self.fetch_data_from_mongodb()
                     if self.table.exists(selected_item):
                     # Update the session name in the Treeview
@@ -193,7 +175,6 @@ class ReportsPage(Frame):
                 
 
     def showSessionDetails(self):
-        # Check if a session name is entered in the entry
         if self.session_name_entry.get():
         # If a session name is entered, open the session using the entered name
             self.open_session_by_name()
@@ -202,7 +183,7 @@ class ReportsPage(Frame):
             self.open_selected_session()
 
     def open_session_by_name(self):
-    # Get the session name from the session name entry
+    # Entry session name
         session_name = self.session_name_entry.get()
 
     # Retrieve session data from MongoDB based on session name
