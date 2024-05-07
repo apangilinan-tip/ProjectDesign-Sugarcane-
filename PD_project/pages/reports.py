@@ -1,8 +1,9 @@
 from tkinter import *
-from tkinter import ttk, simpledialog
+from tkinter import ttk, simpledialog, messagebox 
 from pymongo import MongoClient
+from bson.son import SON
+import threading
 from datetime import datetime
-from config import MONGODB_URI
 
 class ReportsPage(Frame):
     def __init__(self, parent, *args, **kwargs):
@@ -10,7 +11,7 @@ class ReportsPage(Frame):
         self.parent = parent
 
         # Connect to MongoDB
-        self.client = MONGODB_URI
+        self.client = MongoClient("mongodb://localhost:27017/")
         self.db = self.client["CaneCheck"]
         self.collection = self.db["Session"]
 
@@ -38,6 +39,20 @@ class ReportsPage(Frame):
         search_button = Button(search_frame, text="Search", command=self.perform_search, bg="#9E8DB9", fg="white", font=("Arial", 14), relief=RAISED)
         search_button.grid(row=1, column=2, padx=(0, 10), pady=5)
 
+        # Refresh Button
+        refresh_button = Button(self, text="Refresh", command=self.refreshAll, bg="#9E8DB9", fg="white", font=("Arial", 10), relief=RAISED)
+        refresh_button.pack(padx=1, pady=1, anchor="n")
+
+        # Open Button
+        open_button = Button(search_frame, text="Open",command=self.showSessionDetails, bg="#9E8DB9", fg="white", font=("Arial", 14), relief=RAISED)
+        open_button.grid(row=0, column=3, padx=(0,10), pady=5)
+
+
+        # Create a scrollbar
+        scrollbar = Scrollbar(self)
+        scrollbar.pack(side=RIGHT, fill=Y)
+        
+
         # Creating the table
         self.table = ttk.Treeview(self, columns=("SessionName", "ElapsedTime"), show="headings", height=20)
         self.table.heading("SessionName", text="Session Name")
@@ -48,11 +63,24 @@ class ReportsPage(Frame):
         style.map("Treeview", background=[("selected", "lightblue")])
         self.table.pack(pady=40)
 
+        scrollbar.config(command=self.table.yview)
+
         # Inserting data from MongoDB
         self.fetch_data_from_mongodb()
 
-        # Bind the TreeviewSelect event
-        self.table.bind("<<TreeviewSelect>>", self.show_session_details)
+        # Bind double click event
+        self.table.bind("<Double-1>", self.openSession)
+        
+    # For Double click
+    def openSession(self, event):
+        self.showSessionDetails()
+
+    #For Refresh Button
+    def refreshAll(self):
+        self.fetch_data_from_mongodb()
+        self.session_name_entry.delete(0,END)
+        self.search_entry.delete(0,END)
+    
 
     def perform_search(self):
         search_query = self.search_entry.get()
@@ -72,7 +100,10 @@ class ReportsPage(Frame):
             self.table.tag_configure(session_name, foreground="blue", font=("Arial", 10, "underline"))
 
     def fetch_data_from_mongodb(self):
-        data = self.collection.find()
+
+        self.table.delete(*self.table.get_children())
+
+        data = self.collection.find()       
         for row in data:
             session_name = row.get("SessionName", "")
             start_time = self.parse_datetime(row.get("StartTime", ""))
@@ -93,41 +124,131 @@ class ReportsPage(Frame):
     def edit_session(self, session_name):
         print(f"Editing session with name: {session_name}")
 
-    def edit_session_name(self):
+    def edit_session_name(self):    
+        new_session_name = self.session_name_entry.get()
+        if new_session_name:
+        # If a session name is entered, edit the input session
+            self.edit_input_session_name(new_session_name)
+        else:
+        # If no session name is entered, edit the selected session
+            self.edit_selected_session_name()
+
+    def edit_input_session_name(self, new_session_name):
+        # Entered session name
+        current_session_name = self.session_name_entry.get()
+
+        # Check if the current session name exists in MongoDB
+        session_data = self.collection.find_one({"SessionName": current_session_name})
+        if session_data:
+            new_session_name = simpledialog.askstring("Edit Session Name", f"Enter new name for session '{current_session_name}':")
+            if new_session_name:
+        # Update the session name in MongoDB
+                session_id = session_data.get("_id")
+                self.collection.update_one({"_id": session_id}, {"$set": {"SessionName": new_session_name}})
+                print(f"Updating session name from '{current_session_name}' to '{new_session_name}'")
+                self.fetch_data_from_mongodb()
+        # Update the session name in the table
+                self.session_name_entry.delete(0, END)
+                self.session_name_entry.insert(0, new_session_name)
+        else:
+            messagebox.showinfo("Session Not Found", "Session name does not exist.")
+
+
+    def edit_selected_session_name(self):
         selected_items = self.table.selection()
         if selected_items:
-            selected_session_name = self.table.item(selected_items[0], "values")[0]
-            new_session_name = simpledialog.askstring("Edit Session Name", f"Enter new name for session '{selected_session_name}':")
-            if new_session_name:
+            selected_item = selected_items[0]
+            values = self.table.item(selected_item, "values")
+            if values:
+                selectedSessionName = values[0]
+                new_session_name = simpledialog.askstring("Edit Session Name", f"Enter new name for session '{selectedSessionName}':")
+                if new_session_name:
                 # Perform database update with new session name
-                print(f"Updating session name from '{selected_session_name}' to '{new_session_name}'")
+                    session_id = self.collection.find_one({"SessionName": selectedSessionName}).get("_id")
+                    self.collection.update_one({"_id": session_id}, {"$set": {"SessionName": new_session_name}})
+                    print(f"Updating session name from '{selectedSessionName}' to '{new_session_name}'")
+                    self.fetch_data_from_mongodb()
+                    if self.table.exists(selected_item):
+                    # Update the session name in the Treeview
+                        self.table.item(selected_item, values=(new_session_name,))
 
-    def show_session_details(self, event):
-        print("Clicked on a row")
-        item = self.table.selection()[0]
-        session_name = self.table.item(item, "values")[0]
+                
+
+    def showSessionDetails(self):
+        if self.session_name_entry.get():
+        # If a session name is entered, open the session using the entered name
+            self.open_session_by_name()
+        else:
+        # If no session name is entered, open the selected session from the table
+            self.open_selected_session()
+
+    def open_session_by_name(self):
+    # Entry session name
+        session_name = self.session_name_entry.get()
+
+    # Retrieve session data from MongoDB based on session name
         session_data = self.collection.find_one({"SessionName": session_name})
-        session_id = session_data.get("Session_ID")
-        session_details = list(self.db["SessionDetail"].find({"Session_ID": session_id}))  # Convert cursor to list
-        print(f"Number of session details: {len(session_details)}")  # Check the length of the session details
+        if session_data:
+        # Process session data and display session details
+            self.display_session_details(session_data)
+        else:
+            messagebox.showinfo("Session Not Found", "Session name not found.")
 
-        # Create a new window to display the session details
+    def open_selected_session(self):
+    # Get the selected row
+        selected_row = self.table.selection()
+        if selected_row:
+        # Get the session name from the selected row
+            session_name = self.table.item(selected_row, "values")[0]
+
+        # Retrieve session data from MongoDB based on session name
+            session_data = self.collection.find_one({"SessionName": session_name})
+            if session_data:
+            # Process session data and display session details
+                self.display_session_details(session_data)
+
+    def display_session_details(self, session_data):
+    # Process session data and display session details
+        start_time = self.parse_datetime(session_data.get("StartTime", ""))
+        end_time = self.parse_datetime(session_data.get("EndTime", ""))
+        elapsed_time = end_time - start_time
+        elapsed_hours = int(elapsed_time.total_seconds() // 3600)
+        elapsed_minutes = int((elapsed_time.total_seconds() % 3600) // 60)
+        elapsed_seconds = int(elapsed_time.total_seconds() % 60)
+        elapsed_time_str = f"{elapsed_hours}h {elapsed_minutes}m {elapsed_seconds}s"
+
+    # Create a new window to display the session details
         detail_window = Toplevel(self)
         detail_window.title("Session Details")
-        detail_window.geometry("600x400")
+        detail_window.geometry("800x600")
 
-        # Create a new table to display the session details
-        detail_table = ttk.Treeview(detail_window, columns=("Sequence", "Variety_ID"), show="headings")
+    # Create a frame to contain session info and variety details
+        frame = Frame(detail_window)
+        frame.pack(pady=10)
+
+    # Create labels for session name and elapsed time
+        session_name_label = Label(frame, text=f"Session Name: {session_data['SessionName']}", font=("Arial", 14))
+        session_name_label.pack()
+
+        elapsed_time_label = Label(frame, text=f"Elapsed Time: {elapsed_time_str}", font=("Arial", 14))
+        elapsed_time_label.pack()
+
+    # Create the variety details table
+        detail_table = ttk.Treeview(frame, columns=("Sequence", "Variety_ID"), show="headings")
         detail_table.heading("Sequence", text="Sequence")
         detail_table.heading("Variety_ID", text="Variety ID")
+        detail_table.pack(fill="both", expand=True)
 
-        # Insert session details into the table
+    # Retrieve variety details for the session from MongoDB
+        session_id = session_data.get("Session_ID")
+        session_details = self.db["SessionDetail"].find({"Session_ID": session_id})
+
+    # Insert variety details into the table
         for session_detail in session_details:
             sequence = session_detail.get("Sequence", "")
             variety_id = session_detail.get("Variety_ID", "")
-            detail_table.insert("", "end", values=(sequence, variety_id))
+            detail_table.insert("", "end", values=(sequence, variety_id)) 
 
-        detail_table.pack(fill="both", expand=True)
 
 
     def show_session_details_frame(self, session_details):
@@ -156,10 +277,6 @@ class ReportsPage(Frame):
             detail_table.insert("", "end", values=(sequence, variety_id))
             # Print statement to verify insertion
             print(f"Inserted into detail table: {sequence}, {variety_id}")
-
-
-
-
 
 
 
