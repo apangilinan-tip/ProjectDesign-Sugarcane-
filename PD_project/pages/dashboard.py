@@ -6,7 +6,7 @@ from datetime import datetime
 import threading
 from pymongo import MongoClient
 from tkinter import simpledialog
-from config import MONGODB_URI
+#from config import MONGODB_URI
 import base64
 
 class DashboardPage(Frame):
@@ -66,7 +66,7 @@ class DashboardPage(Frame):
             self.stop_button.config(state=NORMAL)
             self.capture_image = True
             self.capture_start_time = datetime.now()  # Capture the start time
-            self.capture_images_continuously()
+            self.master.after(5000, self.capture_images_continuously)
         else:
             self.capture_button.config(text="Capture Image")
             self.stop_button.config(state=DISABLED)
@@ -111,10 +111,11 @@ class DashboardPage(Frame):
         with open(os.path.join(session_path, image_filename), "rb") as img_file:
             image_base64 = base64.b64encode(img_file.read()).decode("utf-8")
         
-        self.session_detail_list.append(image_base64)
+        self.session_detail_list.append(image_filename)  #Save base64 or filename?
 
     def initialize_database(self):
-        self.client = MONGODB_URI  # Connect to MongoDB
+        self.client = MongoClient("mongodb://localhost:27017/")  # Connect to MongoDB
+        #self.client = MONGODB_URI  # Connect to MongoDB
         self.db = self.client["CaneCheck"]  # Select the database
         self.session_table = self.db["Session"]  # Select the collection
         self.session_detail_table = self.db["SessionDetail"] 
@@ -139,11 +140,15 @@ class DashboardPage(Frame):
             }
             self.session_table.insert_one(session_data)  # Insert data into MongoDB collection
 
+            sequence = 0
+
             for file_name in self.session_detail_list:
+                sequence += 1
                 variety_id = self.determine_variety_id(file_name)
                 session_detail_data = {
                     "Session_ID": self.current_session_id,
-                    "Sequence": file_name,
+                    "Sequence": sequence,
+                    "FileNanme": file_name,
                     "Variety_ID": variety_id
                 }
                 self.session_detail_table.insert_one(session_detail_data)
