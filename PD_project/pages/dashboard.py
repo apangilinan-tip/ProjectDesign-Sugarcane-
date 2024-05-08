@@ -8,6 +8,7 @@ from pymongo import MongoClient
 from tkinter import simpledialog
 from config import MONGODB_URI
 import base64
+from tkinter import messagebox
 
 class DashboardPage(Frame):
     def __init__(self, parent, *args, **kwargs):
@@ -120,18 +121,24 @@ class DashboardPage(Frame):
         self.session_detail_table = self.db["SessionDetail"] 
 
     def ask_session_name(self):
-        # Ask user to input session name
-        session_name = simpledialog.askstring("Input", "Enter session name:")
-        if session_name:
-            self.persist_to_database(session_name)
+        while True:
+            session_name = simpledialog.askstring("Input", "Enter session name:")  # Ask user to input session name
+            if session_name:
+                if self.session_table.find_one({"SessionName": session_name}):
+                    result = messagebox.askyesno("Duplicate Session Name", "Session name already exists. Do you want to enter a different name?")  # Session name already exists, ask if the user wants to try again or cancel
+                    if not result:  # User chose not to enter a different name, exit the loop
+                        return
+                else:
+                    self.persist_to_database(session_name)  # Session name is unique, proceed to persist to database
+                    return
+            else:
+                return  # User canceled the operation, exit the loop without saving the session details
+
 
     def persist_to_database(self, session_name):
-        if self.image_count > 0 and session_name:
-            # Increment session ID
+        if self.image_count > 0 and session_name:  # Increment session ID
             self.current_session_id = self.get_next_session_id()  # Get the next available session ID
-
-            # Insert new data into MongoDB
-            session_data = {
+            session_data = {  # Insert new data into MongoDB
                 "Session_ID": self.current_session_id,
                 "SessionName": session_name,
                 "StartTime": self.capture_start_time.strftime("%Y-%m-%d %H:%M:%S"),
@@ -153,8 +160,7 @@ class DashboardPage(Frame):
                 self.session_detail_table.insert_one(session_detail_data)
 
 
-    def get_next_session_id(self):
-        # Get the next available session ID
+    def get_next_session_id(self):  # Get the next available session ID
         last_session = self.session_table.find_one(sort=[("Session_ID", -1)])  # Get the document with the highest session ID
         if last_session:
             return last_session["Session_ID"] + 1
