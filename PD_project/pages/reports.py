@@ -68,6 +68,9 @@ class ReportsPage(Frame):
         # Inserting data from MongoDB
         self.fetch_data_from_mongodb()
 
+        # Refresh the self.table to reflect the changes
+        self.table.update()
+
         # Bind double click event
         self.table.bind("<Double-1>", self.openSession)
         
@@ -223,18 +226,22 @@ class ReportsPage(Frame):
         detail_window.geometry("800x600")
 
     # Create a frame to contain session info and variety details
-        frame = Frame(detail_window)
-        frame.pack(pady=10)
+        main_frame = Frame(detail_window)
+        main_frame.pack(pady=10)
+
+    # Create a frame to contain session info and variety details table
+        info_frame = Frame(main_frame)
+        info_frame.pack(side="left", fill="both", expand=True, padx=(20,10))
 
     # Create labels for session name and elapsed time
-        session_name_label = Label(frame, text=f"Session Name: {session_data['SessionName']}", font=("Arial", 14))
+        session_name_label = Label(info_frame, text=f"Session Name: {session_data['SessionName']}", font=("Arial", 14))
         session_name_label.pack()
 
-        elapsed_time_label = Label(frame, text=f"Elapsed Time: {elapsed_time_str}", font=("Arial", 14))
+        elapsed_time_label = Label(info_frame, text=f"Elapsed Time: {elapsed_time_str}", font=("Arial", 14))
         elapsed_time_label.pack()
 
     # Create the variety details table
-        detail_table = ttk.Treeview(frame, columns=("Sequence", "Variety_ID"), show="headings")
+        detail_table = ttk.Treeview(info_frame, columns=("Sequence", "Variety_ID"), show="headings")
         detail_table.heading("Sequence", text="Sequence")
         detail_table.heading("Variety_ID", text="Variety ID")
         detail_table.pack(fill="both", expand=True)
@@ -247,8 +254,41 @@ class ReportsPage(Frame):
         for session_detail in session_details:
             sequence = session_detail.get("Sequence", "")
             variety_id = session_detail.get("Variety_ID", "")
-            detail_table.insert("", "end", values=(sequence, variety_id)) 
+            detail_table.insert("", "end", values=(sequence, variety_id))
 
+            # Create a frame to hold the variety count table
+        count_frame = Frame(main_frame)
+        count_frame.pack(side="right", fill="both", expand=True, padx=(10,20), pady=(56,0))
+
+    # Create the variety count table
+        count_table = ttk.Treeview(count_frame, columns=("Variety", "Count"), show="headings", height=6)
+        count_table.heading("Variety", text="Variety")
+        count_table.heading("Count", text="Count")
+        count_table.column("Count", width=100)
+
+        # Retrieve variety counts for the session from MongoDB
+        variety_counts = self.get_variety_counts(session_id)
+
+        # Insert variety counts into the table
+        for variety, count in variety_counts.items():
+            count_table.insert("", "end", values=(variety, count))
+
+        # Calculate the overall total count of varieties
+        overall_total = sum(variety_counts.values())
+        # Insert the overall total count as a new row
+        count_table.insert("", "end", values=("Total Sugarcane Varieties", overall_total))
+        count_table.pack(side="top", fill="both")
+
+
+    def get_variety_counts(self, session_id):
+        variety_counts = {}
+        session_details = self.db["SessionDetail"].find({"Session_ID": session_id})
+        for detail in session_details:
+            variety_id = detail.get("Variety_ID", "")
+            variety_counts[variety_id] = variety_counts.get(variety_id, 0) + 1
+        return variety_counts
+
+             
 
 
     def show_session_details_frame(self, session_details):
