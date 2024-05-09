@@ -6,7 +6,7 @@ from datetime import datetime
 import threading
 from pymongo import MongoClient
 from tkinter import simpledialog
-from config import MONGODB_URI
+#from config import MONGODB_URI
 import base64
 from tkinter import messagebox
 
@@ -115,7 +115,8 @@ class DashboardPage(Frame):
         self.session_detail_list.append(image_filename)  #Save base64 or filename?
 
     def initialize_database(self):
-        self.client = MONGODB_URI  # Connect to MongoDB
+        self.client = MongoClient("mongodb://localhost:27017/")  # Connect to MongoDB
+        #self.client = MONGODB_URI  # Connect to MongoDB
         self.db = self.client["CaneCheck"]  # Select the database
         self.session_table = self.db["Session"]  # Select the collection
         self.session_detail_table = self.db["SessionDetail"] 
