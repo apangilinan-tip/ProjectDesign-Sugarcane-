@@ -70,7 +70,7 @@ class HelpPage(tk.Frame):
 
 if __name__ == '__main__':
     app = tk.Tk()
-    app.title("Help")
-    app.geometry("800x600")  # Set window size
+    app.title("Help Page")
+    app.geometry("600x400")  
     HelpPage(app)
     app.mainloop()

@@ -178,7 +178,7 @@ class DashboardPage(Frame):
 if __name__ == "__main__":
     root = Tk()
     root.title("Dashboard Page")
-    root.geometry("800x600")
+    root.geometry("600x400")
     root.configure(bg="white")
     
     reports_page = DashboardPage(root)

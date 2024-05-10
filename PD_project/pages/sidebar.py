@@ -84,6 +84,6 @@ class CaneCheckMain(tk.Frame):
 if __name__ == '__main__':
     app = tk.Tk()
     app.title("CaneCheck: Sugarcane Variety Detection")
-    app.geometry("1000x600")  # Set initial window size
+    app.geometry("600x400")  
     CaneCheckMain(app)
     app.mainloop()

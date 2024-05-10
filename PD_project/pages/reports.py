@@ -287,7 +287,7 @@ class ReportsPage(Frame):
 if __name__ == "__main__":
     root = Tk()
     root.title("Reports Page")
-    root.geometry("800x600")
+    root.geometry("600x400")
     root.configure(bg="white")
     
     reports_page = ReportsPage(root)
