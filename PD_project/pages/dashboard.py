@@ -15,7 +15,7 @@ class DashboardPage(Frame):
         Frame.__init__(self, parent, *args, **kwargs)
     
         self.vid = cv2.VideoCapture(0) 
-        self.width, self.height = 800, 600
+        self.width, self.height = 400,300
         self.vid.set(cv2.CAP_PROP_FRAME_WIDTH, self.width) 
         self.vid.set(cv2.CAP_PROP_FRAME_HEIGHT, self.height) 
 
@@ -55,11 +55,12 @@ class DashboardPage(Frame):
             ret, frame = self.vid.read()  # Capture the video frame by frame
             if ret:  # Check if the frame is valid
                 opencv_image = cv2.cvtColor(frame, cv2.COLOR_BGR2RGBA) 
+                opencv_image = cv2.resize(opencv_image, (self.width, self.height))  
                 captured_image = Image.fromarray(opencv_image)  
                 photo_image = ImageTk.PhotoImage(image=captured_image) 
                 self.label_widget.photo_image = photo_image 
                 self.label_widget.configure(image=photo_image) 
-                self.label_widget.image = photo_image  # Keep a reference to prevent garbage collection
+                self.label_widget.image = photo_image
 
     def toggle_capture(self):
         if not self.capture_image:
