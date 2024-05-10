@@ -38,7 +38,7 @@ class CaneCheckMain(tk.Frame):
         logo_text = tk.Label(
             master=hdr_frame,
             text='CANECHECK',
-            font=('Arial', 64, 'bold'),
+            font=('Arial', 48, 'bold'),
             bg='lightgray',
             fg='white'  # Adjust text color
         )

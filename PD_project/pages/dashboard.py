@@ -9,13 +9,14 @@ from tkinter import simpledialog
 from config import MONGODB_URI
 import base64
 from tkinter import messagebox
+import queue
 
 class DashboardPage(Frame):
     def __init__(self, parent, *args, **kwargs):
         Frame.__init__(self, parent, *args, **kwargs)
     
         self.vid = cv2.VideoCapture(0) 
-        self.width, self.height = 400,300
+        self.width, self.height = 320, 150
         self.vid.set(cv2.CAP_PROP_FRAME_WIDTH, self.width) 
         self.vid.set(cv2.CAP_PROP_FRAME_HEIGHT, self.height) 
 
@@ -42,10 +43,16 @@ class DashboardPage(Frame):
 
         self.bind('<Escape>', lambda e: self.master.destroy()) 
 
+        # Queue to pass captured images from camera thread to main GUI thread
+        self.image_queue = queue.Queue()
+
         # Start the camera preview thread
         self.camera_thread = threading.Thread(target=self.open_camera)
         self.camera_thread.daemon = True
         self.camera_thread.start()
+
+        # Start updating the camera preview
+        self.update_camera()
 
         self.session_detail_list = [] 
         self.initialize_database()
@@ -56,11 +63,39 @@ class DashboardPage(Frame):
             if ret:  # Check if the frame is valid
                 opencv_image = cv2.cvtColor(frame, cv2.COLOR_BGR2RGBA) 
                 opencv_image = cv2.resize(opencv_image, (self.width, self.height))  
-                captured_image = Image.fromarray(opencv_image)  
-                photo_image = ImageTk.PhotoImage(image=captured_image) 
-                self.label_widget.photo_image = photo_image 
-                self.label_widget.configure(image=photo_image) 
-                self.label_widget.image = photo_image
+                captured_image = Image.fromarray(opencv_image)
+                # Put the captured image into the queue
+                self.image_queue.put(captured_image)
+
+    def update_camera(self):
+        if self.capture_image and not self.image_queue.empty():
+            captured_image = self.image_queue.get()
+            photo_image = ImageTk.PhotoImage(image=captured_image)
+            self.label_widget.photo_image = photo_image 
+            self.label_widget.configure(image=photo_image) 
+            self.label_widget.image = photo_image
+        elif not self.capture_image:
+            self.label_widget.configure(image=None)  # Clear the preview if not capturing
+        self.label_widget.after(10, self.update_camera)  # Schedule the next update
+
+
+
+    def refresh_app(self):
+        self.capture_image = False
+        self.image_count = 0
+        self.capture_start_time = None
+        self.capture_end_time = None
+        self.session_detail_list = []
+
+        self.label_widget.grid_forget()
+
+        self.capture_button.config(text="Capture Image", state=NORMAL)
+        self.stop_button.config(state=DISABLED)
+        self.count_label.config(text="Images captured: 0")
+        
+        self.update_camera()
+        self.vid.release()
+        self.vid = cv2.VideoCapture(0)
 
     def toggle_capture(self):
         if not self.capture_image:
@@ -68,7 +103,7 @@ class DashboardPage(Frame):
             self.stop_button.config(state=NORMAL)
             self.capture_image = True
             self.capture_start_time = datetime.now()  # Capture the start time
-            self.master.after(5000, self.capture_images_continuously)
+            self.after(5000, self.capture_images_continuously)
         else:
             self.capture_button.config(text="Capture Image")
             self.stop_button.config(state=DISABLED)
@@ -84,7 +119,20 @@ class DashboardPage(Frame):
             self.ask_session_name()  # Ask for session name
             self.session_detail_list.clear()  # Clear session detail list
             self.capture_start_time = None  # Reset capture start time
-            self.capture_end_time = None   # Reset capture end time
+            self.capture_end_time = None   # Reset end time
+            self.label_widget.configure(image=None)  # Clear the camera preview
+            self.label_widget.grid_forget()  # Hide the camera preview widget
+            self.vid.release()  # Release the video capture object
+            self.refresh_app()
+
+
+
+
+
+
+
+
+
 
     def capture_images_continuously(self):
         if self.capture_image:
