@@ -1,6 +1,9 @@
 from tkinter import *
 from tkinter import ttk, simpledialog, messagebox 
 from pymongo import MongoClient
+from PIL import Image, ImageTk
+import os
+import base64
 from bson.son import SON
 import threading
 from datetime import datetime
@@ -241,8 +244,8 @@ class ReportsPage(Frame):
         elapsed_time_label.pack()
 
     # Create the variety details table
-        detail_table = ttk.Treeview(info_frame, columns=("Sequence", "Variety_ID"), show="headings")
-        detail_table.heading("Sequence", text="Sequence")
+        detail_table = ttk.Treeview(info_frame, columns=("File", "Variety_ID"), show="headings")
+        detail_table.heading("File", text="File")
         detail_table.heading("Variety_ID", text="Variety ID")
         detail_table.pack(fill="both", expand=True)
 
@@ -252,9 +255,9 @@ class ReportsPage(Frame):
 
     # Insert variety details into the table
         for session_detail in session_details:
-            sequence = session_detail.get("Sequence", "")
+            filename = session_detail.get("FileName", "")
             variety_id = session_detail.get("Variety_ID", "")
-            detail_table.insert("", "end", values=(sequence, variety_id))
+            detail_table.insert("", "end", values=(filename, variety_id))
 
             # Create a frame to hold the variety count table
         count_frame = Frame(main_frame)
@@ -278,6 +281,44 @@ class ReportsPage(Frame):
         # Insert the overall total count as a new row
         count_table.insert("", "end", values=("Total Sugarcane Varieties", overall_total))
         count_table.pack(side="top", fill="both")
+   
+
+        def on_row_click(event):
+            selected_items = detail_table.selection()
+            if selected_items:
+                item = selected_items[0]
+                sequence = detail_table.item(item, "values")[0]
+                variety_id = detail_table.item(item, "values")[1]
+
+        # Retrieve the image file name from MongoDB based on the sequence and variety_id
+                session_detail = self.db["SessionDetail"].find_one({"FileName": sequence, "Variety_ID": variety_id})
+                image_filename = session_detail.get("FileName", None)
+
+                if image_filename:
+
+                    session_path = os.path.join("captured_images")
+                    image_path = os.path.join(session_path, image_filename)
+
+            # Check if the image file exists
+                if os.path.exists(image_path):
+                # Open the image
+                    image = Image.open(image_path)
+                    image = image.convert("RGB")
+
+                    image_window = Toplevel(detail_table)
+                    image_window.title("Image Preview")
+                    image_label = Label(image_window)
+                    image_label.pack(padx=10, pady=10)
+
+                # Convert the image to PhotoImage format for display in the label
+                    photo_image = ImageTk.PhotoImage(image)
+                    image_label.configure(image=photo_image)
+                    image_label.image = photo_image  # Keep a reference to prevent garbage collection
+
+                else:
+                    print(f"Image file not found: {image_path}")
+
+        detail_table.bind("<Double-1>", on_row_click)
 
 
     def get_variety_counts(self, session_id):
