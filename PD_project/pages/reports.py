@@ -4,7 +4,7 @@ from pymongo import MongoClient
 from bson.son import SON
 import threading
 from datetime import datetime
-from config import MONGODB_URI
+
 
 class ReportsPage(Frame):
     def __init__(self, parent, *args, **kwargs):
@@ -12,8 +12,8 @@ class ReportsPage(Frame):
         self.parent = parent
 
         # Connect to MongoDB
-        # self.client = MongoClient("mongodb://localhost:27017/")
-        self.client = MONGODB_URI  # Connect to MongoDB
+        self.client = MongoClient("mongodb://localhost:27017/")
+        #self.client = MONGODB_URI  # Connect to MongoDB
 
         self.db = self.client["CaneCheck"]
         self.collection = self.db["Session"]
@@ -237,9 +237,10 @@ class ReportsPage(Frame):
         elapsed_time_label.pack()
 
     # Create the variety details table
-        detail_table = ttk.Treeview(frame, columns=("Sequence", "Variety_ID"), show="headings")
+        detail_table = ttk.Treeview(frame, columns=("Sequence", "FileName", "Variety_ID"), show="headings")
         detail_table.heading("Sequence", text="Sequence")
         detail_table.heading("Variety_ID", text="Variety ID")
+        detail_table.heading("FileName", text="File Name")
         detail_table.pack(fill="both", expand=True)
 
     # Retrieve variety details for the session from MongoDB
@@ -250,38 +251,9 @@ class ReportsPage(Frame):
         for session_detail in session_details:
             sequence = session_detail.get("Sequence", "")
             variety_id = session_detail.get("Variety_ID", "")
-            detail_table.insert("", "end", values=(sequence, variety_id)) 
-
-
-
-    def show_session_details_frame(self, session_details):
-        # Destroy the current frame to clear the screen
-        self.destroy()
-
-        # Create a new frame to display the session details
-        session_details_frame = Frame(self.parent, bg="white")
-        session_details_frame.pack(fill="both", expand=True)
-
-        # Print statement to verify frame creation
-        print("Session details frame created.")
-
-        # Create a new table to display the session details
-        detail_table = ttk.Treeview(session_details_frame, columns=("Sequence", "Variety_ID"), show="headings")
-        detail_table.heading("Sequence", text="Sequence")
-        detail_table.heading("Variety_ID", text="Variety ID")
-
-        # Print statement to verify table creation
-        print(f"Number of session details: {len(session_details)}")
-
-        # Insert session details into the table
-        for session_detail in session_details:
-            sequence = session_detail.get("Sequence", "")
-            variety_id = session_detail.get("Variety_ID", "")
-            detail_table.insert("", "end", values=(sequence, variety_id))
-            # Print statement to verify insertion
-            print(f"Inserted into detail table: {sequence}, {variety_id}")
-
-
+            filename = session_detail.get("FileName", "")
+            detail_table.insert("", "end", values=(sequence, filename,  variety_id)) 
+            print(session_detail)
 
     def exit_app(self):
         self.client.close()
@@ -295,5 +267,5 @@ if __name__ == "__main__":
     
     reports_page = ReportsPage(root)
     reports_page.pack(fill="both", expand=True)
-    
+
     root.mainloop()

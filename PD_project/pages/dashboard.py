@@ -46,14 +46,6 @@ class DashboardPage(Frame):
         # Queue to pass captured images from camera thread to main GUI thread
         self.image_queue = queue.Queue()
 
-        # Start the camera preview thread
-        self.camera_thread = threading.Thread(target=self.open_camera)
-        self.camera_thread.daemon = True
-        self.camera_thread.start()
-
-        # Start updating the camera preview
-        self.update_camera()
-
         self.session_detail_list = [] 
         self.initialize_database()
 
@@ -78,8 +70,6 @@ class DashboardPage(Frame):
             self.label_widget.configure(image=None)  # Clear the preview if not capturing
         self.label_widget.after(10, self.update_camera)  # Schedule the next update
 
-
-
     def refresh_app(self):
         self.capture_image = False
         self.image_count = 0
@@ -99,6 +89,7 @@ class DashboardPage(Frame):
 
     def toggle_capture(self):
         if not self.capture_image:
+            self.label_widget.grid(row=1, column=0, padx=10, pady=10) 
             self.capture_button.config(text="Capturing...")
             self.stop_button.config(state=NORMAL)
             self.capture_image = True
@@ -125,19 +116,18 @@ class DashboardPage(Frame):
             self.vid.release()  # Release the video capture object
             self.refresh_app()
 
-
-
-
-
-
-
-
-
-
     def capture_images_continuously(self):
         if self.capture_image:
+            if not hasattr (self, "camera_thread"):
+                #Start the camera preview thread
+                self.camera_thread = threading.Thread(target=self.open_camera)
+                self.camera_thread.daemon = True
+                self.camera_thread.start()
+                self.update_camera()  # Start updating the camera preview
+                
             self.capture_image_func()  # Capture an image
             self.master.after(5000, self.capture_images_continuously)  # Capture image every 5 seconds
+            
 
     def capture_image_func(self):
         ret, frame = self.vid.read()
@@ -204,11 +194,10 @@ class DashboardPage(Frame):
                 session_detail_data = {
                     "Session_ID": self.current_session_id,
                     "Sequence": sequence,
-                    "FileNanme": file_name,
+                    "FileName": file_name,
                     "Variety_ID": variety_id
                 }
                 self.session_detail_table.insert_one(session_detail_data)
-
 
     def get_next_session_id(self):  # Get the next available session ID
         last_session = self.session_table.find_one(sort=[("Session_ID", -1)])  # Get the document with the highest session ID
