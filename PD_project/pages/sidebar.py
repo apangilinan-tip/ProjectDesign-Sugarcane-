@@ -38,7 +38,7 @@ class CaneCheckMain(tk.Frame):
         logo_text = tk.Label(
             master=hdr_frame,
             text='CANECHECK',
-            font=('Arial', 64, 'bold'),
+            font=('Arial', 48, 'bold'),
             bg='lightgray',
             fg='white'  # Adjust text color
         )
@@ -84,6 +84,6 @@ class CaneCheckMain(tk.Frame):
 if __name__ == '__main__':
     app = tk.Tk()
     app.title("CaneCheck: Sugarcane Variety Detection")
-    app.geometry("1000x600")  # Set initial window size
+    app.geometry("600x400")  
     CaneCheckMain(app)
     app.mainloop()
