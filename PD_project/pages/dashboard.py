@@ -6,7 +6,7 @@ from datetime import datetime
 import threading
 from pymongo import MongoClient
 from tkinter import simpledialog
-#from config import MONGODB_URI
+from config import MONGODB_URI
 import base64
 from tkinter import messagebox
 import queue
@@ -113,9 +113,7 @@ class DashboardPage(Frame):
             self.capture_end_time = None   # Reset end time
             self.label_widget.configure(image=None)  # Clear the camera preview
             self.label_widget.grid_forget()  # Hide the camera preview widget
-            self.vid.release()  # Release the video capture object
-            self.refresh_app()
-
+            self.refresh_app()  # This should be called before releasing the camera
     def capture_images_continuously(self):
         if self.capture_image:
             if not hasattr (self, "camera_thread"):
@@ -154,8 +152,8 @@ class DashboardPage(Frame):
         self.session_detail_list.append(image_filename)  #Save base64 or filename?
 
     def initialize_database(self):
-        self.client = MongoClient("mongodb://localhost:27017/")  # Connect to MongoDB
-        #self.client = MONGODB_URI  # Connect to MongoDB
+        # self.client = MongoClient("mongodb://localhost:27017/")  # Connect to MongoDB
+        self.client = MONGODB_URI  # Connect to MongoDB
         self.db = self.client["CaneCheck"]  # Select the database
         self.session_table = self.db["Session"]  # Select the collection
         self.session_detail_table = self.db["SessionDetail"] 

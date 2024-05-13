@@ -17,10 +17,10 @@ class CaneCheckMain(tk.Frame):
 
         # Application images
         self.images = [
-            tk.PhotoImage(name='logo', file=PATH / 'sugarcane.png'),
-            tk.PhotoImage(name='dashboard', file=PATH / 'dashboard_icon.png'),
-            tk.PhotoImage(name='reports', file=PATH / 'reports_icon.png'),
-            tk.PhotoImage(name='help', file=PATH / 'help_icon.png')
+            tk.PhotoImage(name='logo', file=PATH / 'sugarcane.png').subsample(1),  
+            tk.PhotoImage(name='dashboard', file=PATH / 'dashboard_icon.png').subsample(2),  
+            tk.PhotoImage(name='reports', file=PATH / 'reports_icon.png').subsample(2),
+            tk.PhotoImage(name='help', file=PATH / 'help_icon.png').subsample(2)  
         ]
 
         # Header
@@ -38,14 +38,15 @@ class CaneCheckMain(tk.Frame):
         logo_text = tk.Label(
             master=hdr_frame,
             text='CANECHECK',
-            font=('Arial', 48, 'bold'),
+            font=('Arial', 40, 'bold'),
             bg='lightgray',
-            fg='white'  # Adjust text color
+            fg='white',  # Adjust text color
+            padx=50  # Add padding to the left
         )
-        logo_text.pack(side=tk.LEFT, padx=10, pady=20)
+        logo_text.pack(side=tk.LEFT, padx=0, pady=0)
 
         # Sidebar
-        sidebar_frame = tk.Frame(self, bg='#9E8DB9', width=200)
+        sidebar_frame = tk.Frame(self, bg='#9E8DB9', width=100)
         sidebar_frame.pack(side=tk.LEFT, fill=tk.Y)
 
         # Action buttons
@@ -62,7 +63,7 @@ class CaneCheckMain(tk.Frame):
                 bg='#9E8DB9',
                 command=lambda page_name=page_name: self.show_page(page_name)
             )
-            button.pack(fill=tk.X, padx=10, pady=10)
+            button.pack(fill=tk.X, padx=10, pady=5)  
 
         # Create and add pages to the dictionary
         self.pages["Dashboard"] = DashboardPage(self)

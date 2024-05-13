@@ -7,14 +7,15 @@ import base64
 from bson.son import SON
 import threading
 from datetime import datetime
-
+from config import MONGODB_URI
 class ReportsPage(Frame):
     def __init__(self, parent, *args, **kwargs):
         Frame.__init__(self, parent, *args, **kwargs)
         self.parent = parent
 
         # Connect to MongoDB
-        self.client = MongoClient("mongodb://localhost:27017/")
+        # self.client = MongoClient("mongodb://localhost:27017/")
+        self.client = MONGODB_URI  # Connect to MongoDB
         self.db = self.client["CaneCheck"]
         self.collection = self.db["Session"]
 
