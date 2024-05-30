@@ -81,15 +81,11 @@ class DashboardPage(Frame):
         self.capture_end_time = None
         self.session_detail_list = []
 
-        self.label_widget.grid_forget()
-
         self.capture_button.config(text="Capture Image", state=NORMAL)
         self.stop_button.config(state=DISABLED)
         self.count_label.config(text="Images captured: 0")
         
         self.update_camera()
-        self.vid.release()
-        self.vid = cv2.VideoCapture(0)
 
     def toggle_capture(self):
         if not self.capture_image:
@@ -114,7 +110,7 @@ class DashboardPage(Frame):
             self.session_detail_list.clear()  # Clear session detail list
             self.capture_start_time = None  # Reset capture start time
             self.capture_end_time = None   # Reset end time
-            self.refresh_app()  # This should be called before releasing the camera
+            self.refresh_app()  # Refresh the app to reset everything
 
     def capture_images_continuously(self):
         if self.capture_image:
@@ -146,7 +142,6 @@ class DashboardPage(Frame):
         self.session_detail_list.append(image_filename)  # Save base64 or filename?
 
     def initialize_database(self):
-        # self.client = MongoClient("mongodb://localhost:27017/")  # Connect to MongoDB
         self.client = MONGODB_URI  # Connect to MongoDB
         self.db = self.client["CaneCheck"]  # Select the database
         self.session_table = self.db["Session"]  # Select the collection

@@ -14,7 +14,7 @@ class HelpPage(tk.Frame):
 
         # Load sugarcane logo
         sugarcane_logo = Image.open(logo_path)
-        sugarcane_logo = sugarcane_logo.resize((200, 200))  # Resize the image if necessary
+        sugarcane_logo = sugarcane_logo.resize((100, 100))  # Resize the image to a smaller size
         self.sugarcane_logo_img = ImageTk.PhotoImage(sugarcane_logo)
 
         # Create header
@@ -24,11 +24,11 @@ class HelpPage(tk.Frame):
         header_label = tk.Label(
             header_frame,
             text="Need Help?",
-            font=('Arial', 24, 'bold'),
+            font=('Arial', 18, 'bold'),  # Smaller font size
             bg='#9E8DB9',
             fg='white'
         )
-        header_label.pack(pady=20)
+        header_label.pack(pady=10)  # Reduced padding
 
         # Sugarcane logo
         sugarcane_logo_label = tk.Label(
@@ -40,12 +40,12 @@ class HelpPage(tk.Frame):
 
         # Contact information
         contact_frame = tk.Frame(self)
-        contact_frame.pack(pady=20)
+        contact_frame.pack(pady=10)  # Reduced padding
 
         contact_label = tk.Label(
             contact_frame,
             text="Contact Him:",
-            font=('Arial', 18),
+            font=('Arial', 14),  # Smaller font size
             fg='black'
         )
         contact_label.pack()
@@ -53,7 +53,7 @@ class HelpPage(tk.Frame):
         contact_info = tk.Label(
             contact_frame,
             text="Phone: 09396018365\nEmail: mmhdbiston@tip.edu.ph",
-            font=('Arial', 14),
+            font=('Arial', 12),  # Smaller font size
             fg='black'
         )
         contact_info.pack()
@@ -62,15 +62,14 @@ class HelpPage(tk.Frame):
         additional_info = tk.Label(
             self,
             text="For additional help or information, please contact our support team.",
-            font=('Arial', 14),
+            font=('Arial', 12),  # Smaller font size
             fg='black'
         )
-        additional_info.pack(pady=20)
-
+        additional_info.pack(pady=10)  # Reduced padding
 
 if __name__ == '__main__':
     app = tk.Tk()
     app.title("Help Page")
-    app.geometry("600x400")  
+    app.geometry("400x300")  # Smaller window size
     HelpPage(app)
     app.mainloop()
