@@ -7,7 +7,7 @@ import base64
 from bson.son import SON
 import threading
 from datetime import datetime
-from config import MONGODB_URI
+# from config import MONGODB_URI
 
 class ReportsPage(Frame):
     def __init__(self, parent, *args, **kwargs):
@@ -15,9 +15,9 @@ class ReportsPage(Frame):
         self.parent = parent
 
         # Connect to MongoDB
-        self.client = MONGODB_URI  # Connect to MongoDB
-        self.db = self.client["CaneCheck"]
-        self.collection = self.db["Session"]
+        # self.client = MONGODB_URI  # Connect to MongoDB
+        # self.db = self.client["CaneCheck"]
+        # self.collection = self.db["Session"]
 
         # Search Frame
         search_frame = Frame(self, bg="lightgrey")
@@ -68,7 +68,7 @@ class ReportsPage(Frame):
         scrollbar.config(command=self.table.yview)
 
         # Inserting data from MongoDB
-        self.fetch_data_from_mongodb()
+        # self.fetch_data_from_mongodb()
 
         # Refresh the self.table to reflect the changes
         self.table.update()
@@ -103,17 +103,17 @@ class ReportsPage(Frame):
             self.table.insert("", "end", values=(session_name, elapsed_time))
             self.table.tag_configure(session_name, foreground="blue", font=("Arial", 10, "underline"))
 
-    def fetch_data_from_mongodb(self):
-        self.table.delete(*self.table.get_children())
+    # def fetch_data_from_mongodb(self):
+    #     self.table.delete(*self.table.get_children())
 
-        data = self.collection.find()       
-        for row in data:
-            session_name = row.get("SessionName", "")
-            start_time = self.parse_datetime(row.get("StartTime", ""))
-            end_time = self.parse_datetime(row.get("EndTime", ""))
-            elapsed_time = end_time - start_time
-            self.table.insert("", "end", values=(session_name, elapsed_time))
-            self.table.tag_configure(session_name, foreground="blue", font=("Arial", 10, "underline"))
+    #     data = self.collection.find()       
+    #     for row in data:
+    #         session_name = row.get("SessionName", "")
+    #         start_time = self.parse_datetime(row.get("StartTime", ""))
+    #         end_time = self.parse_datetime(row.get("EndTime", ""))
+    #         elapsed_time = end_time - start_time
+    #         self.table.insert("", "end", values=(session_name, elapsed_time))
+    #         self.table.tag_configure(session_name, foreground="blue", font=("Arial", 10, "underline"))
 
     def parse_datetime(self, datetime_str):
         formats = ["%Y-%m-%dT%H:%M:%S%z", "%Y-%m-%d %H:%M:%S"]

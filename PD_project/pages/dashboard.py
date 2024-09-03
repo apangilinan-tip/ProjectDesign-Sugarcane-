@@ -6,7 +6,7 @@ from datetime import datetime
 import threading
 from pymongo import MongoClient
 from tkinter import simpledialog
-from config import MONGODB_URI
+# from config import MONGODB_URI
 import base64
 from tkinter import messagebox
 import queue
@@ -47,7 +47,7 @@ class DashboardPage(Frame):
         self.image_queue = queue.Queue()
 
         self.session_detail_list = []
-        self.initialize_database()
+        # self.initialize_database()
 
         # Start the camera preview thread
         self.camera_thread = threading.Thread(target=self.open_camera)
@@ -141,11 +141,11 @@ class DashboardPage(Frame):
         
         self.session_detail_list.append(image_filename)  # Save base64 or filename?
 
-    def initialize_database(self):
-        self.client = MONGODB_URI  # Connect to MongoDB
-        self.db = self.client["CaneCheck"]  # Select the database
-        self.session_table = self.db["Session"]  # Select the collection
-        self.session_detail_table = self.db["SessionDetail"]
+    # def initialize_database(self):
+    #     self.client = MONGODB_URI  # Connect to MongoDB
+    #     self.db = self.client["CaneCheck"]  # Select the database
+    #     self.session_table = self.db["Session"]  # Select the collection
+    #     self.session_detail_table = self.db["SessionDetail"]
 
     def ask_session_name(self):
         while True:
