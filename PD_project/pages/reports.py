@@ -1,64 +1,56 @@
 from tkinter import *
-from tkinter import ttk, simpledialog, messagebox 
-from pymongo import MongoClient
-from PIL import Image, ImageTk
-import os
-import base64
-from bson.son import SON
-import threading
+from tkinter import ttk, simpledialog, messagebox
+from PIL import Image, ImageTk  # Import Pillow for image handling
+import sqlite3
+from io import BytesIO  # To handle image data
 from datetime import datetime
-# from config import MONGODB_URI
 
 class ReportsPage(Frame):
     def __init__(self, parent, *args, **kwargs):
         Frame.__init__(self, parent, *args, **kwargs)
         self.parent = parent
 
-        # Connect to MongoDB
-        # self.client = MONGODB_URI  # Connect to MongoDB
-        # self.db = self.client["CaneCheck"]
-        # self.collection = self.db["Session"]
+        # Connect to SQLite database
+        self.conn = sqlite3.connect('sessiondb.db')
+        self.cursor = self.conn.cursor()
 
         # Search Frame
         search_frame = Frame(self, bg="lightgrey")
         search_frame.pack(pady=5)
-        
+
         # Session Name Label
         session_name_label = Label(search_frame, text="Session Name:", font=("Arial", 12))
         session_name_label.grid(row=0, column=0, padx=(5, 5), pady=5)
-        
+
         # Session Name Entry
         self.session_name_entry = Entry(search_frame, width=20, font=("Arial", 10))
         self.session_name_entry.grid(row=0, column=1, padx=5, pady=5)
-        
+
         # Edit Button
         edit_button = Button(search_frame, text="Edit", command=self.edit_session_name, bg="#9E8DB9", fg="white", font=("Arial", 12), relief=RAISED)
         edit_button.grid(row=0, column=2, padx=(0, 5), pady=5)
-        
+
         # Search Entry
         self.search_entry = Entry(search_frame, width=30, font=("Arial", 12))
         self.search_entry.grid(row=1, column=0, columnspan=2, padx=(5, 0), pady=5)
-        
+
         # Search Button
         search_button = Button(search_frame, text="Search", command=self.perform_search, bg="#9E8DB9", fg="white", font=("Arial", 12), relief=RAISED)
         search_button.grid(row=1, column=2, padx=(0, 5), pady=5)
 
         # Refresh Button
-        refresh_button = Button(self, text="Refresh", command=self.refreshAll, bg="#9E8DB9", fg="white", font=("Arial", 12), relief=RAISED)
+        refresh_button = Button(self, text="Refresh", command=self.refresh_all, bg="#9E8DB9", fg="white", font=("Arial", 12), relief=RAISED)
         refresh_button.pack(padx=1, pady=5, anchor="n")
-
-        # Open Button
-        open_button = Button(search_frame, text="Open", command=self.showSessionDetails, bg="#9E8DB9", fg="white", font=("Arial", 12), relief=RAISED)
-        open_button.grid(row=0, column=3, padx=(0, 5), pady=5)
 
         # Create a scrollbar
         scrollbar = Scrollbar(self)
         scrollbar.pack(side=RIGHT, fill=Y)
-        
+
         # Creating the table
         self.table = ttk.Treeview(self, columns=("SessionName", "ElapsedTime"), show="headings", height=15)
         self.table.heading("SessionName", text="Session Name")
         self.table.heading("ElapsedTime", text="Elapsed Time")
+
         style = ttk.Style()
         style.theme_use("default")
         style.configure("Treeview", background="white", foreground="black", rowheight=25, fieldbackground="lightgrey")
@@ -67,255 +59,108 @@ class ReportsPage(Frame):
 
         scrollbar.config(command=self.table.yview)
 
-        # Inserting data from MongoDB
-        # self.fetch_data_from_mongodb()
-
-        # Refresh the self.table to reflect the changes
-        self.table.update()
+        # Fetch data from the SQLite database and populate the table
+        self.fetch_data_from_sqlite()
 
         # Bind double click event
-        self.table.bind("<Double-1>", self.openSession)
+        self.table.bind("<Double-1>", self.open_session)
+
+    def fetch_data_from_sqlite(self):
+        """Fetches data from the SQLite database and populates the table."""
+        self.table.delete(*self.table.get_children())
+        self.cursor.execute("SELECT SessionName,StartTime, EndTime FROM SessionDB")
+        sessions = self.cursor.fetchall()
         
-    # For Double click
-    def openSession(self, event):
-        self.showSessionDetails()
-
-    # For Refresh Button
-    def refreshAll(self):
-        self.fetch_data_from_mongodb()
-        self.session_name_entry.delete(0, END)
-        self.search_entry.delete(0, END)
-    
-    def perform_search(self):
-        search_query = self.search_entry.get()
-        for row in self.table.get_children():
-            self.table.delete(row)
-        try:
-            search_query = int(search_query)
-            data = self.collection.find({"SessionName": search_query})
-        except ValueError:
-            data = self.collection.find({"SessionName": {"$regex": search_query, "$options": "i"}})
-        for row in data:
-            session_name = row.get("SessionName", "")
-            start_time = self.parse_datetime(row.get("StartTime", ""))
-            end_time = self.parse_datetime(row.get("EndTime", ""))
+        for session in sessions:
+            session_name = session[0]
+            start_time = self.parse_datetime(session[1])
+            end_time = self.parse_datetime(session[2])
             elapsed_time = end_time - start_time
-            self.table.insert("", "end", values=(session_name, elapsed_time))
-            self.table.tag_configure(session_name, foreground="blue", font=("Arial", 10, "underline"))
-
-    # def fetch_data_from_mongodb(self):
-    #     self.table.delete(*self.table.get_children())
-
-    #     data = self.collection.find()       
-    #     for row in data:
-    #         session_name = row.get("SessionName", "")
-    #         start_time = self.parse_datetime(row.get("StartTime", ""))
-    #         end_time = self.parse_datetime(row.get("EndTime", ""))
-    #         elapsed_time = end_time - start_time
-    #         self.table.insert("", "end", values=(session_name, elapsed_time))
-    #         self.table.tag_configure(session_name, foreground="blue", font=("Arial", 10, "underline"))
+            self.table.insert("", "end", values=(session_name, str(elapsed_time)))
 
     def parse_datetime(self, datetime_str):
-        formats = ["%Y-%m-%dT%H:%M:%S%z", "%Y-%m-%d %H:%M:%S"]
-        for fmt in formats:
-            try:
-                return datetime.strptime(datetime_str, fmt)
-            except ValueError:
-                pass
-        raise ValueError(f"Unable to parse datetime: {datetime_str}")
+        return datetime.strptime(datetime_str, "%Y-%m-%d %H:%M:%S")
 
-    def edit_session(self, session_name):
-        print(f"Editing session with name: {session_name}")
-
-    def edit_session_name(self):    
-        new_session_name = self.session_name_entry.get()
-        if new_session_name:
-            self.edit_input_session_name(new_session_name)
-        else:
-            self.edit_selected_session_name()
-
-    def edit_input_session_name(self, new_session_name):
-        current_session_name = self.session_name_entry.get()
-
-        session_data = self.collection.find_one({"SessionName": current_session_name})
-        if session_data:
-            new_session_name = simpledialog.askstring("Edit Session Name", f"Enter new name for session '{current_session_name}':")
-            if new_session_name:
-                session_id = session_data.get("_id")
-                self.collection.update_one({"_id": session_id}, {"$set": {"SessionName": new_session_name}})
-                print(f"Updating session name from '{current_session_name}' to '{new_session_name}'")
-                self.fetch_data_from_mongodb()
-                self.session_name_entry.delete(0, END)
-                self.session_name_entry.insert(0, new_session_name)
-        else:
-            messagebox.showinfo("Session Not Found", "Session name does not exist.")
-
-    def edit_selected_session_name(self):
-        selected_items = self.table.selection()
-        if selected_items:
-            selected_item = selected_items[0]
-            values = self.table.item(selected_item, "values")
-            if values:
-                selectedSessionName = values[0]
-                new_session_name = simpledialog.askstring("Edit Session Name", f"Enter new name for session '{selectedSessionName}':")
-                if new_session_name:
-                    session_id = self.collection.find_one({"SessionName": selectedSessionName}).get("_id")
-                    self.collection.update_one({"_id": session_id}, {"$set": {"SessionName": new_session_name}})
-                    print(f"Updating session name from '{selectedSessionName}' to '{new_session_name}'")
-                    self.fetch_data_from_mongodb()
-                    if self.table.exists(selected_item):
-                        self.table.item(selected_item, values=(new_session_name,))
-
-    def showSessionDetails(self):
-        if self.session_name_entry.get():
-            self.open_session_by_name()
-        else:
-            self.open_selected_session()
-
-    def open_session_by_name(self):
-        session_name = self.session_name_entry.get()
-
-        session_data = self.collection.find_one({"SessionName": session_name})
-        if session_data:
-            self.display_session_details(session_data)
-        else:
-            messagebox.showinfo("Session Not Found", "Session name not found.")
-
-    def open_selected_session(self):
+    def open_session(self, event):
+        """Handles opening a session and displaying its image."""
         selected_row = self.table.selection()
         if selected_row:
             session_name = self.table.item(selected_row, "values")[0]
+            self.show_session_image(session_name)
 
-            session_data = self.collection.find_one({"SessionName": session_name})
-            if session_data:
-                self.display_session_details(session_data)
+    def show_session_image(self, session_name):
+        """Fetches and displays the image associated with the selected session."""
+        
+        # First, retrieve the Session_ID from the Session table using the session name
+        self.cursor.execute("SELECT Session_ID FROM Session WHERE SessionName=?", (session_name,))
+        session_id_result = self.cursor.fetchone()
 
-    def display_session_details(self, session_data):
-        start_time = self.parse_datetime(session_data.get("StartTime", ""))
-        end_time = self.parse_datetime(session_data.get("EndTime", ""))
-        elapsed_time = end_time - start_time
-        elapsed_hours = int(elapsed_time.total_seconds() // 3600)
-        elapsed_minutes = int((elapsed_time.total_seconds() % 3600) // 60)
-        elapsed_seconds = int(elapsed_time.total_seconds() % 60)
-        elapsed_time_str = f"{elapsed_hours}h {elapsed_minutes}m {elapsed_seconds}s"
+        if session_id_result:
+            session_id = session_id_result[0]
 
-        detail_window = Toplevel(self)
-        detail_window.title("Session Details")
-        detail_window.geometry("700x500")
+            # Now, fetch the ImageData from SessionDetail table using Session_ID
+            self.cursor.execute("SELECT ImageData FROM SessionDetail WHERE Session_ID=?", (session_id,))
+            image_data = self.cursor.fetchone()
 
-        main_frame = Frame(detail_window)
-        main_frame.pack(pady=10)
+            if image_data and image_data[0]:
+                try:
+                    # Assuming image data is stored as binary (BLOB)
+                    image = Image.open(BytesIO(image_data[0]))  # Read binary data as image
+                    image = image.resize((400, 300), Image.ANTIALIAS)  # Resize image
+                    photo = ImageTk.PhotoImage(image)
 
-        info_frame = Frame(main_frame)
-        info_frame.pack(side="left", fill="both", expand=True, padx=(10, 5))
+                    # Create a new window to show the image
+                    image_window = Toplevel(self)
+                    image_window.title("Session Image")
+                    image_window.geometry("450x350")
 
-        session_name_label = Label(info_frame, text=f"Session Name: {session_data['SessionName']}", font=("Arial", 12))
-        session_name_label.pack()
+                    image_label = Label(image_window, image=photo)
+                    image_label.image = photo  # Keep a reference to avoid garbage collection
+                    image_label.pack(pady=20)
+                except Exception as e:
+                    messagebox.showerror("Error", f"Failed to load image: {e}")
+            else:
+                messagebox.showerror("Error", "No image available for this session.")
+        else:
+            messagebox.showerror("Error", "No session ID found for this session name.")
 
-        elapsed_time_label = Label(info_frame, text=f"Elapsed Time: {elapsed_time_str}", font=("Arial", 12))
-        elapsed_time_label.pack()
 
-        detail_table = ttk.Treeview(info_frame, columns=("File", "Variety_ID"), show="headings")
-        detail_table.heading("File", text="File")
-        detail_table.heading("Variety_ID", text="Variety ID")
-        detail_table.pack(fill="both", expand=True)
 
-        session_id = session_data.get("Session_ID")
-        session_details = self.db["SessionDetail"].find({"Session_ID": session_id})
+    def edit_session_name(self):
+        """Edits the session name."""
+        session_name = self.session_name_entry.get()
+        if session_name:
+            new_session_name = simpledialog.askstring("Edit Session Name", f"Enter new name for session '{session_name}':")
+            if new_session_name:
+                self.cursor.execute("UPDATE Session SET SessionName=? WHERE SessionName=?", (new_session_name, session_name))
+                self.conn.commit()
+                self.fetch_data_from_sqlite()
 
-        for session_detail in session_details:
-            filename = session_detail.get("FileName", "")
-            variety_id = session_detail.get("Variety_ID", "")
-            detail_table.insert("", "end", values=(filename, variety_id))
+    def perform_search(self):
+        """Searches for a session by name."""
+        search_query = self.search_entry.get()
+        self.table.delete(*self.table.get_children())
+        self.cursor.execute("SELECT SessionName, StartTime, EndTime FROM Session WHERE SessionName LIKE ?", (f"%{search_query}%",))
+        sessions = self.cursor.fetchall()
 
-        count_frame = Frame(main_frame)
-        count_frame.pack(side="right", fill="both", expand=True, padx=(5, 10), pady=(40, 0))
+        for session in sessions:
+            session_name = session[0]
+            start_time = self.parse_datetime(session[1])
+            end_time = self.parse_datetime(session[2])
+            elapsed_time = end_time - start_time
+            self.table.insert("", "end", values=(session_name, str(elapsed_time)))
 
-        count_table = ttk.Treeview(count_frame, columns=("Variety", "Count"), show="headings", height=6)
-        count_table.heading("Variety", text="Variety")
-        count_table.heading("Count", text="Count")
-        count_table.column("Count", width=100)
-
-        variety_counts = self.get_variety_counts(session_id)
-
-        for variety, count in variety_counts.items():
-            count_table.insert("", "end", values=(variety, count))
-
-        overall_total = sum(variety_counts.values())
-        count_table.insert("", "end", values=("Total Sugarcane Varieties", overall_total))
-        count_table.pack(side="top", fill="both")
-
-        def on_row_click(event):
-            selected_items = detail_table.selection()
-            if selected_items:
-                item = selected_items[0]
-                sequence = detail_table.item(item, "values")[0]
-                variety_id = detail_table.item(item, "values")[1]
-
-                session_detail = self.db["SessionDetail"].find_one({"FileName": sequence, "Variety_ID": variety_id})
-                image_filename = session_detail.get("FileName", None)
-
-                if image_filename:
-                    session_path = os.path.join("captured_images")
-                    image_path = os.path.join(session_path, image_filename)
-
-                    if os.path.exists(image_path):
-                        image = Image.open(image_path)
-                        image = image.convert("RGB")
-
-                        image_window = Toplevel(detail_table)
-                        image_window.title("Image Preview")
-                        image_label = Label(image_window)
-                        image_label.pack(padx=10, pady=10)
-
-                        photo_image = ImageTk.PhotoImage(image)
-                        image_label.configure(image=photo_image)
-                        image_label.image = photo_image
-
-                    else:
-                        print(f"Image file not found: {image_path}")
-
-        detail_table.bind("<Double-1>", on_row_click)
-
-    def get_variety_counts(self, session_id):
-        variety_counts = {}
-        session_details = self.db["SessionDetail"].find({"Session_ID": session_id})
-        for detail in session_details:
-            variety_id = detail.get("Variety_ID", "")
-            variety_counts[variety_id] = variety_counts.get(variety_id, 0) + 1
-        return variety_counts
-
-    def show_session_details_frame(self, session_details):
-        self.destroy()
-
-        session_details_frame = Frame(self.parent, bg="white")
-        session_details_frame.pack(fill="both", expand=True)
-
-        print("Session details frame created.")
-
-        detail_table = ttk.Treeview(session_details_frame, columns=("Sequence", "Variety_ID"), show="headings")
-        detail_table.heading("Sequence", text="Sequence")
-        detail_table.heading("Variety_ID", text="Variety ID")
-
-        print(f"Number of session details: {len(session_details)}")
-
-        for session_detail in session_details:
-            sequence = session_detail.get("Sequence", "")
-            variety_id = session_detail.get("Variety_ID", "")
-            detail_table.insert("", "end", values=(sequence, variety_id))
-            print(f"Inserted into detail table: {sequence}, {variety_id}")
-
-    def exit_app(self):
-        self.client.close()
-        self.parent.destroy()
+    def refresh_all(self):
+        """Refreshes the table with all sessions."""
+        self.fetch_data_from_sqlite()
 
 if __name__ == "__main__":
     root = Tk()
     root.title("Reports Page")
     root.geometry("700x500")
     root.configure(bg="white")
-    
+
     reports_page = ReportsPage(root)
     reports_page.pack(fill="both", expand=True)
-    
+
     root.mainloop()

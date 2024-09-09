@@ -4,12 +4,10 @@ from PIL import Image, ImageTk
 import os
 from datetime import datetime
 import threading
-from pymongo import MongoClient
-from tkinter import simpledialog
-# from config import MONGODB_URI
 import base64
-from tkinter import messagebox
+from tkinter import simpledialog, messagebox
 import queue
+import sqlite3
 
 class DashboardPage(Frame):
     def __init__(self, parent, *args, **kwargs):
@@ -47,13 +45,34 @@ class DashboardPage(Frame):
         self.image_queue = queue.Queue()
 
         self.session_detail_list = []
-        # self.initialize_database()
+        self.initialize_database()
 
         # Start the camera preview thread
         self.camera_thread = threading.Thread(target=self.open_camera)
         self.camera_thread.daemon = True
         self.camera_thread.start()
         self.update_camera()  # Start updating the camera preview
+
+    def initialize_database(self):
+        # Connect to SQLite database (or create it if it doesn't exist)
+        self.conn = sqlite3.connect('sessiondb.db')
+        self.cursor = self.conn.cursor()
+
+        # Create a combined table for both session and image data
+        self.cursor.execute('''
+            CREATE TABLE IF NOT EXISTS SessionDB (
+                ID INTEGER PRIMARY KEY AUTOINCREMENT,
+                SessionName TEXT,
+                StartTime TEXT,
+                EndTime TEXT,
+                Sequence INTEGER,
+                FileName TEXT,
+                Variety_ID TEXT,
+                ImageData TEXT  -- To store the base64 image data
+            )
+        ''')
+
+        self.conn.commit()
 
     def open_camera(self):
         while True:
@@ -122,7 +141,8 @@ class DashboardPage(Frame):
         if ret:
             opencv_image = cv2.cvtColor(frame, cv2.COLOR_BGR2RGBA)
             captured_image = Image.fromarray(opencv_image)
-            self.save_image(captured_image)
+            filename, image_base64 = self.save_image(captured_image)
+            self.session_detail_list.append((filename, image_base64))  # Append both filename and base64
             self.image_count += 1
             self.count_label.config(text=f"Images captured: {self.image_count}")
 
@@ -134,24 +154,20 @@ class DashboardPage(Frame):
             os.makedirs(session_path)
         image_filename = f"sugarcane_image_{timestamp}.png"
         image.save(os.path.join(session_path, image_filename))
-    
+
         # Convert image to base64
         with open(os.path.join(session_path, image_filename), "rb") as img_file:
             image_base64 = base64.b64encode(img_file.read()).decode("utf-8")
         
-        self.session_detail_list.append(image_filename)  # Save base64 or filename?
+        return image_filename, image_base64  # Return both the filename and base64
 
-    # def initialize_database(self):
-    #     self.client = MONGODB_URI  # Connect to MongoDB
-    #     self.db = self.client["CaneCheck"]  # Select the database
-    #     self.session_table = self.db["Session"]  # Select the collection
-    #     self.session_detail_table = self.db["SessionDetail"]
 
     def ask_session_name(self):
         while True:
             session_name = simpledialog.askstring("Input", "Enter session name:")  # Ask user to input session name
             if session_name:
-                if self.session_table.find_one({"SessionName": session_name}):
+                self.cursor.execute("SELECT 1 FROM SessionDB WHERE SessionName = ?", (session_name,))
+                if self.cursor.fetchone():
                     result = messagebox.askyesno("Duplicate Session Name", "Session name already exists. Do you want to enter a different name?")  # Session name already exists, ask if the user wants to try again or cancel
                     if not result:  # User chose not to enter a different name, exit the loop
                         return
@@ -162,51 +178,21 @@ class DashboardPage(Frame):
                 return  # User canceled the operation, exit the loop without saving the session details
 
     def persist_to_database(self, session_name):
-        if self.image_count > 0 and session_name:  # Increment session ID
-            self.current_session_id = self.get_next_session_id()  # Get the next available session ID
-            session_data = {  # Insert new data into MongoDB
-                "Session_ID": self.current_session_id,
-                "SessionName": session_name,
-                "StartTime": self.capture_start_time.strftime("%Y-%m-%d %H:%M:%S"),
-                "EndTime": self.capture_end_time.strftime("%Y-%m-%d %H:%M:%S")
-            }
-            self.session_table.insert_one(session_data)  # Insert data into MongoDB collection
-
+        if self.image_count > 0 and session_name:
             sequence = 0
-
-            for file_name in self.session_detail_list:
+            for file_name, image_base64 in self.session_detail_list:
                 sequence += 1
                 variety_id = self.determine_variety_id(file_name)
-                session_detail_data = {
-                    "Session_ID": self.current_session_id,
-                    "Sequence": sequence,
-                    "FileName": file_name,
-                    "Variety_ID": variety_id
-                }
-                self.session_detail_table.insert_one(session_detail_data)
-
-    def get_next_session_id(self):  # Get the next available session ID
-        last_session = self.session_table.find_one(sort=[("Session_ID", -1)])  # Get the document with the highest session ID
-        if last_session:
-            return last_session["Session_ID"] + 1
-        else:
-            return 1
+                self.cursor.execute("INSERT INTO SessionDB (SessionName, StartTime, EndTime, Sequence, FileName, Variety_ID, ImageData) VALUES (?, ?, ?, ?, ?, ?, ?)",
+                                    (session_name, self.capture_start_time.strftime("%Y-%m-%d %H:%M:%S"), 
+                                    self.capture_end_time.strftime("%Y-%m-%d %H:%M:%S"), sequence, file_name, variety_id, image_base64))
+            self.conn.commit()
 
     def determine_variety_id(self, filename):  
-        # Enter your code here to process the image on open cv
+        # Enter your code here to process the image with OpenCV and determine the variety
         return "variety1"
 
     def exit_app(self):
         self.vid.release()  # Release the camera
+        self.conn.close()  # Close the database connection
         self.master.destroy()
-
-if __name__ == "__main__":
-    root = Tk()
-    root.title("Dashboard Page")
-    root.geometry("600x400")
-    root.configure(bg="white")
-    
-    reports_page = DashboardPage(root)
-    reports_page.pack(fill="both", expand=True)
-    
-    root.mainloop()

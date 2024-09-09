@@ -2,6 +2,7 @@ from pathlib import Path
 import tkinter as tk
 from tkinter import ttk
 from PIL import ImageTk, Image
+import sqlite3
 
 # Importing the DashboardPage, ReportsPage, and HelpPage classes
 from dashboard import DashboardPage
@@ -16,12 +17,17 @@ class CaneCheckMain(tk.Frame):
         super().__init__(master, **kwargs)
         self.pack(fill=tk.BOTH, expand=tk.YES)
 
+        # Initialize SQLite connection (same database as in DashboardPage)
+        self.conn = sqlite3.connect('canecheck3.db')
+        self.cursor = self.conn.cursor()
+        self.create_tables()
+
         # Application images
         self.images = [
-            tk.PhotoImage(name='logo', file=PATH / 'sugarcane.png').subsample(2),  
-            tk.PhotoImage(name='dashboard', file=PATH / 'dashboard_icon.png').subsample(2),  
+            tk.PhotoImage(name='logo', file=PATH / 'sugarcane.png').subsample(2),
+            tk.PhotoImage(name='dashboard', file=PATH / 'dashboard_icon.png').subsample(2),
             tk.PhotoImage(name='reports', file=PATH / 'reports_icon.png').subsample(2),
-            tk.PhotoImage(name='help', file=PATH / 'help_icon.png').subsample(2)  
+            tk.PhotoImage(name='help', file=PATH / 'help_icon.png').subsample(2)
         ]
 
         # Header
@@ -69,7 +75,7 @@ class CaneCheckMain(tk.Frame):
                 bg='#9E8DB9',
                 command=lambda page_name=page_name: self.show_page(page_name)
             )
-            button.pack(fill=tk.X, padx=10, pady=5)  
+            button.pack(fill=tk.X, padx=10, pady=5)
 
         # Create and add pages to the dictionary
         self.pages["Dashboard"] = DashboardPage(self)
@@ -79,6 +85,23 @@ class CaneCheckMain(tk.Frame):
         # Show the initial page
         self.show_page("Dashboard")
 
+    def create_tables(self):
+        # Example table creation for sessions and details (single database `canecheck2.db`)
+        self.cursor.execute('''CREATE TABLE IF NOT EXISTS Session (
+                                Session_ID INTEGER PRIMARY KEY AUTOINCREMENT,
+                                SessionName TEXT,
+                                StartTime TEXT,
+                                EndTime TEXT)''')
+        self.cursor.execute('''CREATE TABLE IF NOT EXISTS SessionDetail (
+                                ID INTEGER PRIMARY KEY AUTOINCREMENT,
+                                Session_ID INTEGER,
+                                Sequence INTEGER,
+                                FileName TEXT,
+                                Variety_ID TEXT,
+                                ImageData TEXT,
+                                FOREIGN KEY(Session_ID) REFERENCES Session(Session_ID))''')
+        self.conn.commit()
+
     def show_page(self, page_name):
         # Hide all pages
         for page in self.pages.values():
@@ -86,6 +109,9 @@ class CaneCheckMain(tk.Frame):
 
         # Show the selected page
         self.pages[page_name].pack(fill=tk.BOTH, expand=True)
+
+    def close_connection(self):
+        self.conn.close()
 
 
 class HelpPage(tk.Frame):
@@ -156,6 +182,6 @@ class HelpPage(tk.Frame):
 if __name__ == '__main__':
     app = tk.Tk()
     app.title("CaneCheck: Sugarcane Variety Detection")
-    app.geometry("600x400")  
+    app.geometry("600x400")
     CaneCheckMain(app)
     app.mainloop()
